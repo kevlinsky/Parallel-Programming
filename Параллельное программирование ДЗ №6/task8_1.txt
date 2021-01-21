@@ -1,0 +1,119 @@
+#include <iostream>
+#include <math.h>
+#include "mpi.h"
+
+int main(int argc, char *argv[]){
+    srand(time(NULL));
+    int const n = 10;
+    int ProcRank, ProcNum, message_size;
+    MPI_Status status;
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &ProcNum);
+    MPI_Comm_rank(MPI_COMM_WORLD, &ProcRank);
+
+    if (ProcRank == 0){
+        int a[n][n], b[n][n];
+
+        printf("A: \n");
+        for (int i = 0; i < n; i++){
+            for (int j = 0; j < n; j++){
+                a[i][j] = rand() % 10 + 1;
+                printf("%d ", a[i][j]);
+            }
+            printf("\n");
+        }
+
+        printf("B: \n");
+        for (int i = 0; i < n; i++){
+            for (int j = 0; j < n; j++){
+                b[i][j] = rand() % 10 + 1;
+                printf("%.d ", b[i][j]);
+            }
+            printf("\n");
+        }
+
+        int block_size = int(ceil(n * n / (ProcNum - 1)));
+        int iterator = 0;
+        int stroka = 0, stolbec = 0;
+        int send_a[block_size], send_b[block_size];
+
+        for (int i = 1; i < ProcNum; i++){
+            for (int j = stroka; j < n; j++) {
+                for (int k = stolbec; k < n; k++) {
+                    send_a[iterator] = a[j][k];
+                    send_b[iterator] = b[j][k];
+                    iterator++;
+                    if (iterator == block_size){
+                        stroka = j;
+                        stolbec = k + 1;
+                        break;
+                    }
+                }
+                if (iterator != block_size){
+                    stolbec = 0;
+                } else {
+                    iterator = 0;
+                    break;
+                }
+            }
+            MPI_Send(send_a, block_size, MPI_INT, i, 1, MPI_COMM_WORLD);
+            MPI_Send(send_b, block_size, MPI_INT, i, 2, MPI_COMM_WORLD);
+        }
+    }
+    if (ProcRank != 0){
+        MPI_Probe(0, 1, MPI_COMM_WORLD, &status);
+        MPI_Get_count(&status, MPI_INT, &message_size);
+        int* received_a = (int*)malloc(sizeof(int) * message_size);
+        int* received_b = (int*)malloc(sizeof(int) * message_size);
+        MPI_Recv(received_a, message_size, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
+        MPI_Recv(received_b, message_size, MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
+
+        int result[message_size];
+
+        for (int i = 0; i < message_size; i++){
+            result[i] = received_a[i] * received_b[i];
+        }
+        MPI_Send(result, message_size, MPI_INT, 0, 0, MPI_COMM_WORLD);
+    }
+    if (ProcRank == 0){
+        int result[n][n];
+        MPI_Probe(MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+        MPI_Get_count(&status, MPI_INT, &message_size);
+        int * received = (int*)malloc(sizeof(int) * message_size);
+
+        int stroka = 0, stolbec = 0;
+        int iterator = 0;
+
+        for (int i = 1; i < ProcNum; i++){
+            MPI_Recv(received, message_size, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
+            for (int j = stroka; j < n; j++){
+                for (int k = stolbec; k < n; ++k) {
+                    result[j][k] = received[iterator];
+                    iterator++;
+                    if (iterator == message_size){
+                        stroka = j;
+                        stolbec = k + 1;
+                        break;
+                    }
+                }
+                if (iterator != message_size){
+                    stolbec = 0;
+                } else {
+                    iterator = 0;
+                    break;
+                }
+            }
+        }
+
+        printf("Result matrix: \n");
+        for (int i = 0; i < n; i++){
+            for (int j = 0; j < n; j++){
+                printf("%d ", result[i][j]);
+            }
+            printf("\n");
+        }
+    }
+
+    MPI_Finalize();
+}

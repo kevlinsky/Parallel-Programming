@@ -1,0 +1,35 @@
+#include <stdio.h>
+#include <omp.h>
+#include <unistd.h>
+
+int main(){
+    int numOfThreads;
+    int threadNum;
+
+    printf("First solution:\n");
+#pragma omp parallel num_threads(8) private(threadNum)
+    {
+        threadNum = omp_get_thread_num() + 1;
+        numOfThreads = omp_get_num_threads();
+        sleep(numOfThreads - threadNum);
+        printf("Thread %d said: \"Hello World!\" Threads in work: %d\n", threadNum, numOfThreads);
+    }
+
+    int count = 8;
+
+    printf("\nSecond solution:\n");
+#pragma omp parallel num_threads(8)
+    {
+        while (count > 0) {
+            if (omp_get_thread_num() + 1 == count){
+#pragma omp critical
+                {
+                    count--;
+                    printf("Thread %d said: \"Hello World!\" Threads in work: %d\n", omp_get_thread_num() + 1, omp_get_num_threads());
+                }
+            }
+        }
+    }
+
+    return 0;
+}

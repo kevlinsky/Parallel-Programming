@@ -1,0 +1,41 @@
+#include<mpi.h>
+#include<iostream>
+
+int main(int argc, char *argv[]) {
+    int ProcNum, ProcRank;
+
+    const int NUM = 10;
+    int a[NUM];
+
+    MPI_Status status;
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &ProcNum);
+    MPI_Comm_rank(MPI_COMM_WORLD, &ProcRank);
+
+    if (ProcRank == 1) {
+        for (int i = 0; i < NUM; i++) {
+            a[i] = rand() % 100 + 1;
+        }
+        for (int i = 0; i < ProcNum; ++i) {
+            if (i != 1){
+                MPI_Send(&a, NUM, MPI_INT, i, 0, MPI_COMM_WORLD);
+            }
+        }
+    } else if (ProcRank != 1) {
+        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        auto size = 0;
+        MPI_Get_count(&status, MPI_INT, &size);
+        int* temp_mem = (int*)malloc(sizeof(int) * size);
+        MPI_Recv(&a, NUM, MPI_INT, 1, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        printf("Thread %d of %d received %d bytes\na[10] = ", ProcRank + 1, ProcNum, size * 4);
+        for (int i = 0; i < NUM; i++) {
+            printf("%d ", a[i]);
+        }
+        printf("\n");
+        free(temp_mem);
+    }
+    MPI_Finalize();
+
+    return 0;
+}

@@ -1,0 +1,27 @@
+#include <omp.h>
+#include <cstdio>
+
+int main() {
+
+    int numberOfThreads = 3;
+    omp_set_num_threads(numberOfThreads);
+
+#pragma omp parallel if (numberOfThreads > 1)
+    {
+        if (omp_in_parallel()){
+            printf("Thread №%d of %d\n", omp_get_thread_num() + 1, omp_get_num_threads());
+        }
+    }
+
+    numberOfThreads = 1;
+    omp_set_num_threads(numberOfThreads);
+
+#pragma omp parallel if (numberOfThreads > 1)
+    {
+        if (omp_in_parallel()){
+            printf("Thread №%d of %d\n", omp_get_thread_num() + 1, omp_get_num_threads());
+        }
+    }
+
+    return 0;
+} 

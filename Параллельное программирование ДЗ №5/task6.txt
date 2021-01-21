@@ -1,0 +1,78 @@
+#include <iostream>
+#include "mpi.h"
+
+int main(int argc, char *argv[]) {
+    MPI_Status status;
+    int ProcRank, ProcNum, message_size;
+    int const count = 10;
+    int const a = 1;
+    int const b = 2;
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &ProcNum);
+    MPI_Comm_rank(MPI_COMM_WORLD, &ProcRank);
+
+    if (ProcRank == 0) {
+        printf("a = %d, b = %d\n", a, b);
+
+        int x[count], y[count];
+
+        printf("Coordinates\n");
+        printf("x y\n");
+        for (int i = 0; i < count; i++) {
+            x[i] = rand() % 100 + 1;
+            printf("%d ", x[i]);
+            y[i] = rand() % 100 + 1;
+            printf("%d\n", y[i]);
+        }
+        for (int i = 1; i < ProcNum; i++) {
+            MPI_Send(x + (i - 1) * count / (ProcNum - 1), count / (ProcNum - 1), MPI_INT, i, 1, MPI_COMM_WORLD);
+            MPI_Send(y + (i - 1) * count / (ProcNum - 1), count / (ProcNum - 1), MPI_INT, i, 2, MPI_COMM_WORLD);
+        }
+    } else {
+        MPI_Probe(0, 1, MPI_COMM_WORLD, &status);
+        MPI_Get_count(&status, MPI_INT, &message_size);
+        int* received_x = (int*)malloc(sizeof(int) * message_size);
+
+        MPI_Recv(received_x, message_size, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
+
+        MPI_Probe(0, 2, MPI_COMM_WORLD, &status);
+        MPI_Get_count(&status, MPI_INT, &message_size);
+        int* received_y = (int*)malloc(sizeof(int) * message_size);
+
+        MPI_Recv(received_y, message_size, MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
+
+        int* z = (int*)malloc(sizeof(int) * message_size);
+
+        for (int i = 0; i < message_size; i++) {
+            z[i] = a * received_x[i] + b * received_y[i];
+        }
+        MPI_Send(z, message_size, MPI_INT, 0, 0, MPI_COMM_WORLD);
+    }
+
+    if (ProcRank == 0) {
+        int result[count];
+        int n = 0;
+
+        for (int i = 1; i < ProcNum; i++) {
+            MPI_Probe(i, 0, MPI_COMM_WORLD, &status);
+            MPI_Get_count(&status, MPI_INT, &message_size);
+            int* z = (int*)malloc(sizeof(int) * message_size);
+
+            MPI_Recv(z, message_size, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
+
+            for (int j = 0; j < message_size; j++) {
+                result[n] = z[j];
+                n++;
+            }
+        }
+
+        printf("Result vectors: \n");
+        for (int i = 0; i < count; i++) {
+            printf("%d\n", result[i]);
+        }
+        printf("\n");
+    }
+
+    MPI_Finalize();
+}

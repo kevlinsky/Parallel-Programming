@@ -1,0 +1,20 @@
+#include <stdio.h>
+#include <omp.h>
+
+int main(){
+    int result = 0;
+    int odd = 1;
+
+    omp_set_num_threads(4);
+
+#pragma omp parallel
+    {
+#pragma omp for schedule(static)
+        for (int i = 0; i < 210; i++){
+            result += odd;
+            odd += 2;
+            printf("Thread №%d of %d, result = %d\n", omp_get_thread_num(), omp_get_num_threads(), result);
+        }
+    }
+    printf("210^2 = %d", result);
+}

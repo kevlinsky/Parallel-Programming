@@ -1,0 +1,109 @@
+#include <iostream>
+#include "mpi.h"
+
+int rank, size, len;
+int const a = 5;
+int const b = 3;
+int const d = 10;
+
+int main(int argc, char **argv){
+    MPI_Status status;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int x[d], y[d], z1[d], z2[d];
+
+    if (rank == 0){
+        printf("a = %d, b = %d", a, b);
+        printf("Coordinates:\n");
+        for (int i = 0; i < d; i++){
+            x[i] = rand() % 10;
+            y[i] = rand() % 10;
+            printf("x%d = %d, y%d = %d \n", i, x[i], i, y[i]);
+        }
+
+        for (int i = 0; i < size - 1; i++){
+            MPI_Send(x + i * d / (size - 1), d / (size - 1), MPI_INT, i + 1, 1, MPI_COMM_WORLD);
+            MPI_Send(y + i * d / (size - 1), d / (size - 1), MPI_INT, i + 1, 2, MPI_COMM_WORLD);
+        }
+    } else {
+        MPI_Probe(0, 1, MPI_COMM_WORLD, &status);
+        MPI_Get_count(&status, MPI_INT, &len);
+        int * x = (int*)malloc(sizeof(int) * len);
+        MPI_Recv(x, len, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
+
+        int * y = (int*)malloc(sizeof(int) * len);
+        MPI_Recv(y, len, MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
+
+        int * case1 = (int*)malloc(sizeof(int) * len);
+        int * case2 = (int*)malloc(sizeof(int) * len);
+        int * case3x = (int*)malloc(sizeof(int) * len);
+        int * case3y = (int*)malloc(sizeof(int) * len);
+
+        for (int i = 0; i < len; i++)
+        {
+            case1[i] = a * x[i] + b * y[i];
+            case2[i] = x[i] * y[i];
+            case3x[i] = y[i];
+            case3y[i] = x[i];
+        }
+        MPI_Send(case1, len, MPI_INT, 0, rank * 100 + 1, MPI_COMM_WORLD);
+        MPI_Send(case2, len, MPI_INT, 0, rank * 100 + 3, MPI_COMM_WORLD);
+        MPI_Send(case3x, len, MPI_INT, 0, rank * 100 + 4, MPI_COMM_WORLD);
+        MPI_Send(case3y, len, MPI_INT, 0, rank * 100 + 5, MPI_COMM_WORLD);
+    }
+    if (rank == 0){
+        int iterator = 0;
+        for (int i = 1; i < size; i++){
+            MPI_Probe(i, i * 100 + 1, MPI_COMM_WORLD, &status);
+            MPI_Get_count(&status, MPI_INT, &len);
+
+            int * case1 = (int*)malloc(sizeof(int) * len);
+            int * case2 = (int*)malloc(sizeof(int) * len);
+            int * case3x = (int*)malloc(sizeof(int) * len);
+            int * case3y = (int*)malloc(sizeof(int) * len);
+
+            MPI_Recv(case1, len, MPI_INT, i, i * 100 + 1, MPI_COMM_WORLD, &status);
+            MPI_Recv(case2, len, MPI_INT, i, i * 100 + 3, MPI_COMM_WORLD, &status);
+            MPI_Recv(case3x, len, MPI_INT, i, i * 100 + 4, MPI_COMM_WORLD, &status);
+            MPI_Recv(case3y, len, MPI_INT, i, i * 100 + 5, MPI_COMM_WORLD, &status);
+
+            for (int i = 0; i < len; i++){
+                z1[iterator] = case1[i];
+                z2[iterator] = case2[i];
+                x[iterator] = case3x[i];
+                y[iterator] = case3y[i];
+                iterator++;
+            }
+        }
+        printf("1)Vector z = a * x + b * y: \n");
+        for (int i = 0; i < d; i++)
+        {
+            printf("%d ", z1[i]);
+        }
+        printf("\n");
+
+        printf("3)Vector z = x * y: \n");
+        for (int i = 0; i < d; i++)
+        {
+            printf("%d ", z2[i]);
+        }
+        printf("\n");
+
+        printf("4)Vector x = y: \n");
+        for (int i = 0; i < d; i++)
+        {
+            printf("%d ", x[i]);
+        }
+        printf("\n");
+
+        printf("5)Vector y = x: \n");
+        for (int i = 0; i < d; i++)
+        {
+            printf("%d ", y[i]);
+        }
+        printf("\n");
+    }
+
+    MPI_Finalize();
+}

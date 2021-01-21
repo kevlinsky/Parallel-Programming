@@ -1,0 +1,39 @@
+#include <omp.h>
+#include <cstdio>
+#include <cstdlib>
+
+int main(){
+    int a[10];
+    int b[10];
+
+    for (int i = 0; i < 10; i++){
+        a[i] = rand() % 10;
+        b[i] = rand() % 10;
+    }
+
+    printf("a[10] = ");
+    for (int i = 0; i < 10; i++){
+        printf("%d ", a[i]);
+    }
+    printf("\n");
+
+    printf("b[10] = ");
+    for (int i = 0; i < 10; i++){
+        printf("%d ", b[i]);
+    }
+    printf("\n");
+
+    int sumA = 0;
+    int sumB = 0;
+
+#pragma omp parallel for reduction(+: sumA) reduction(+: sumB)
+    for (int i = 0; i < 10; i++){
+        sumA += a[i];
+        sumB += b[i];
+    }
+
+    printf("Average of a[10]: %f\n", (float) sumA / 10);
+    printf("Average of b[10]: %f\n", (float) sumB / 10);
+
+    return 0;
+}
